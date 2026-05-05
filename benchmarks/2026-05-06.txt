@@ -1,0 +1,33 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/kat/katty/internal/builtin
+cpu: Apple M3 Pro
+BenchmarkFsList100-11           	  636300	      1861 ns/op	    1240 B/op	      15 allocs/op
+BenchmarkFsRead1KB-11           	  100636	     11922 ns/op	   22648 B/op	      15 allocs/op
+BenchmarkFsStat-11              	  770683	      1569 ns/op	    1152 B/op	      10 allocs/op
+BenchmarkProcExecEcho-11        	     963	   1261659 ns/op	   12158 B/op	      73 allocs/op
+BenchmarkOsInfo-11              	     684	   1663559 ns/op	   47779 B/op	     109 allocs/op
+BenchmarkOsWhich-11             	   15992	     74644 ns/op	   26736 B/op	     297 allocs/op
+BenchmarkRegistryLookup-11      	203194455	         5.914 ns/op	       0 B/op	       0 allocs/op
+BenchmarkToolRegistration-11    	   95478	     12506 ns/op	   54800 B/op	     381 allocs/op
+BenchmarkOkResult-11            	66276525	        18.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkErrResult-11           	1000000000	         0.2508 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/kat/katty/internal/builtin	14.753s
+PASS
+ok  	github.com/kat/katty/internal/config	0.009s
+?   	github.com/kat/katty/internal/deepseek	[no test files]
+?   	github.com/kat/katty/internal/envprobe	[no test files]
+?   	github.com/kat/katty/internal/mcp	[no test files]
+goos: darwin
+goarch: arm64
+pkg: github.com/kat/katty/internal/repl
+cpu: Apple M3 Pro
+BenchmarkParseToolCalls_1Call-11     	 1000000	      1010 ns/op	     896 B/op	      21 allocs/op
+BenchmarkParseToolCalls_3Calls-11    	  493327	      2425 ns/op	    2608 B/op	      51 allocs/op
+BenchmarkIsDanglingAction-11         	 8329411	       143.7 ns/op	      62 B/op	       2 allocs/op
+PASS
+ok  	github.com/kat/katty/internal/repl	3.595s
+?   	github.com/kat/katty/internal/startup	[no test files]
+?   	github.com/kat/katty/internal/systemctx	[no test files]
+?   	github.com/kat/katty/internal/transcript	[no test files]

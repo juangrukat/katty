@@ -1,0 +1,64 @@
+{
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-v4-pro",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "base_url": "https://api.deepseek.com",
+    "request_timeout_seconds": 120
+  },
+  "startup": {
+    "max_file_chars": 25000,
+    "files": [
+      "~/.katty/soul.md",
+      "~/.katty/preferences.md"
+    ]
+  },
+  "environment": {
+    "enabled": true,
+    "include_path": true,
+    "tool_checks": [
+      "git",
+      "python3",
+      "node",
+      "brew",
+      "rg",
+      "jq"
+    ]
+  },
+  "mcp_servers": {
+    "file-utils": {
+      "enabled": true,
+      "required": false,
+      "transport": "stdio",
+      "command": "python3",
+      "args": [
+        "~/mcp-servers/file-utils/main.py",
+        "--transport=stdio"
+      ],
+      "cwd": "~/mcp-servers/file-utils",
+      "startup_timeout_seconds": 15
+    }
+  },
+  "tooling": {
+    "mode": "auto",
+    "max_tool_rounds": 5000
+  },
+  "output": {
+    "max_tool_output_chars": 25000,
+    "prefer_structured_content": true,
+    "include_raw_mcp_envelope": false,
+    "compact_shell_results": true
+  },
+  "mcp": {
+    "cache_tools": true,
+    "cache_ttl_seconds": 3600,
+    "call_timeout_seconds": 60
+  },
+  "policy": {
+    "tool_mode": "auto"
+  },
+  "transcripts": {
+    "dir": "~/.katty/sessions",
+    "format": "jsonl"
+  }
+}

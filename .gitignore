@@ -1,0 +1,18 @@
+# Binaries (root-level only)
+/katty
+/katty-go
+/cputest
+/profiletest
+
+# macOS
+.DS_Store
+
+# Profiling artifacts
+*.prof
+*.trace
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
