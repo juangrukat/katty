@@ -87,9 +87,7 @@ func TestDefaultPath(t *testing.T) {
 
 func TestConfigTranscriptsDir(t *testing.T) {
 	cfg := DefaultConfig()
-	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, ".katty", "sessions")
-	if cfg.Transcripts.Dir != expected {
-		t.Errorf("expected %s, got %s", expected, cfg.Transcripts.Dir)
+	if cfg.Transcripts.Dir != "~/.katty/sessions" {
+		t.Errorf("expected ~/.katty/sessions, got %s", cfg.Transcripts.Dir)
 	}
 }

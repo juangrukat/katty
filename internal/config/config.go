@@ -95,7 +95,6 @@ type TargetConfigRegistry struct {
 }
 
 func DefaultConfig() Config {
-	home, _ := os.UserHomeDir()
 	return Config{
 		Model: ModelConfig{
 			Provider:              "deepseek",
@@ -107,8 +106,8 @@ func DefaultConfig() Config {
 		Startup: StartupConfig{
 			MaxFileChars: 20000,
 			Files: []string{
-				filepath.Join(home, ".katty", "soul.md"),
-				filepath.Join(home, ".katty", "preferences.md"),
+				"~/.katty/soul.md",
+				"~/.katty/preferences.md",
 			},
 		},
 		Environment: EnvironmentConfig{
@@ -163,7 +162,7 @@ func DefaultConfig() Config {
 			StartupConcurrency: true,
 		},
 		Transcripts: TranscriptsConfig{
-			Dir:    filepath.Join(home, ".katty", "sessions"),
+			Dir:    "~/.katty/sessions",
 			Format: "jsonl",
 		},
 	}

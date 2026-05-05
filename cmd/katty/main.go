@@ -219,8 +219,9 @@ func loadConfig(path string) (*config.Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) && path != "" {
-			fmt.Fprintf(os.Stderr, "Config not found at %s, using defaults\n", path)
+			fmt.Fprintf(os.Stderr, "Config not found at %s, writing defaults\n", path)
 			cfg := config.DefaultConfig()
+			writeConfig(path, &cfg)
 			return &cfg, nil
 		}
 		return nil, err
@@ -233,6 +234,17 @@ func loadConfig(path string) (*config.Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func writeConfig(path string, cfg *config.Config) {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return
+	}
+	os.WriteFile(path, data, 0644)
 }
 
 func expandConfigPaths(cfg *config.Config) {
