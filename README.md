@@ -81,7 +81,7 @@ Single binary. The core dispatch path — registry lookup, result construction, 
 ```bash
 git clone https://github.com/kat/katty.git
 cd katty
-go build -o katty ./cmd/katty
+go build -o katty .
 ```
 
 ### Configure
