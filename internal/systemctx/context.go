@@ -68,6 +68,13 @@ func (sc *SystemContext) Prompt() string {
 	b.WriteString("Use katty.net.* for reachability checks.\n")
 	b.WriteString("Use MCP only for configured specialized integrations.\n\n")
 
+	b.WriteString("TOOL CONSTRAINTS — CRITICAL:\n")
+	b.WriteString("You may ONLY call tools that are explicitly listed in <built_in_tools> or <available_mcp_tools> below.\n")
+	b.WriteString("The lists below are THE COMPLETE AND AUTHORITATIVE CATALOG of available tools. There are no other tools. None.\n")
+	b.WriteString("If a tool name does not appear in one of these lists, it DOES NOT EXIST and you MUST NOT call it.\n")
+	b.WriteString("Do not invent, assume, or hallucinate tool names. Do not reference tools from training data, examples, or documentation.\n")
+	b.WriteString("If you need a capability and no listed tool provides it, say so honestly rather than fabricating a tool.\n\n")
+
 	// Startup files
 	if len(sc.StartupFiles) > 0 {
 		b.WriteString("<startup_files>\n")
@@ -131,7 +138,14 @@ func (sc *SystemContext) Prompt() string {
 			fmt.Fprintf(&b, "%s: %s\n", t.Name, t.Description)
 		}
 		b.WriteString("</available_mcp_tools>\n\n")
+	} else {
+		b.WriteString("<available_mcp_tools>\n")
+		b.WriteString("(none — no MCP tools are currently available)\n")
+		b.WriteString("</available_mcp_tools>\n\n")
 	}
+
+	b.WriteString("These are ALL the tools you have. The lists above are exhaustive and authoritative.\n")
+	b.WriteString("No other tools exist. Do not call anything not listed above.\n")
 
 	return b.String()
 }
