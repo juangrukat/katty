@@ -1,250 +1,304 @@
 # Katty-Go
 
-> **Native system tools. DeepSeek precision. Your terminal, your rules.**
+> A trusted terminal workbench for model-driven systems work.
 
-Katty-Go is not an AI shell wrapper. It is a native operations substrate for model-driven terminal work — 31 system tools for filesystem, process, session, target, OS, and network operations in a single, zero-dependency Go binary.
+Katty-Go is a single-binary assistant runtime that lets a model work directly with a real Unix-like machine through typed native tools.
 
-It doesn't delegate to a shell. It doesn't wrap safety policies. It gives you granular primitives that assume operator trust and reward precision.
+It is not a chatbot bolted onto a shell. It is a small operating surface for local and remote work: inspect files, patch code, run tests, keep sessions alive, probe the environment, copy files to targets, call MCP tools, and record what happened.
+
+The core idea is simple: give the model better hands than raw shell strings.
 
 ---
 
-## Who It's For
+## What It Is
 
-You're working directly on production machines. You need `katty.fs.patch` to surgically replace a config line, `katty.session.start` to hold a long-running debugger, `katty.target.exec` to run a command on the staging box — all from one terminal, all through DeepSeek, all with zero shell delegation.
+Katty-Go starts an interactive terminal assistant backed by DeepSeek. On startup it builds a system context from:
 
-Katty-Go is built for **systems programmers and toolmakers** who want sharp tools, not training wheels.
+* `~/.katty/config.json`
+* `~/.katty/soul.md`
+* `~/.katty/preferences.md`
+* local OS and environment probes
+* configured remote targets
+* built-in tool definitions
+* available MCP servers and tools
+
+The model can then call Katty tools through a text-block protocol. Katty parses those calls, executes them, feeds the results back into the conversation, and continues the loop until there is a final answer.
+
+This makes Katty useful for work that is naturally iterative:
+
+```text
+inspect -> edit -> run -> observe -> adjust -> verify
+```
+
+Examples:
+
+* read a source file, patch it, run tests, and explain the result
+* find where a config is defined and update it precisely
+* start a dev server or REPL and keep interacting with it
+* inspect a staging target, copy logs back, and summarize failures
+* check whether required tools exist before choosing commands
+* expose additional local capabilities through MCP servers
+
+---
 
 ## Trust Model
 
-Katty-Go is designed for trusted operators working on trusted local or remote machines. It does not sandbox commands, rewrite prompts through a safety layer, or restrict filesystem/process access by default.
+Katty-Go assumes a trusted operator.
 
-Use it when you want precise primitives and direct control. Do not expose it to untrusted users, untrusted prompts, or shared multi-tenant environments without additional isolation.
+It does not sandbox filesystem access, wrap tool calls in a policy layer, or prevent dangerous-but-valid actions. If a tool is available to the model, the model can call it.
 
----
-
-## First Session
-
-```bash
-$ ./katty
-katty> check whether nginx is running on staging
-```
-
-Katty-Go calls `katty.target.exec` against your `staging` target, runs `systemctl status nginx`, and reports the result.
-
-```
-katty> patch the staging config to increase worker_connections from 1024 to 2048
-```
-
-It fetches `/etc/nginx/nginx.conf` via `katty.target.copy_from`, applies `katty.fs.patch` with exact old/new text, and pushes the result back with `katty.target.copy_to`.
-
-```
-katty> restart nginx on staging and show me the logs
-```
-
-It runs `systemctl restart nginx` on the target, then tails the error log through a `katty.session.start` session — all in one turn.
-
-That's the loop: observe, patch, push, restart, verify. No shell delegation. No safety prompts. Just tools and trust.
-
-Because Katty-Go assumes operator trust, workflows like this should be run from a context where target names, credentials, and write permissions are already intentionally scoped.
-
----
-
-## Performance
-
-Single binary. The core dispatch path — registry lookup, result construction, and dangling-action detection — is allocation-free. I/O-heavy tools (filesystem reads, process forks) remain bounded by the OS, not by Katty-Go overhead. Everything in-memory is sub-100 µs; everything that touches the kernel is ~1.5 ms.
-
-| Operation | Latency | Allocs | Memory |
-|-----------|---------|--------|--------|
-| Registry lookup (31 tools) | **6 ns** | 0 | 0 B |
-| Tool result construction | **18 ns** | 0 | 0 B |
-| Dangling-action detection | 147 ns | 2 | 62 B |
-| Parse 1 tool call from model output | 1.0 µs | 21 | 896 B |
-| Parse 3 tool calls | 2.5 µs | 51 | 2.6 KB |
-| `fs.stat` | 1.6 µs | 10 | 1.2 KB |
-| `fs.list` (100 entries) | 1.9 µs | 15 | 1.2 KB |
-| `fs.read` (1 KB) | 12.3 µs | 15 | 22.6 KB |
-| `os.which` (3 binaries) | 77 µs | 297 | 26.7 KB |
-| `proc.exec` (echo) | 1.46 ms | 73 | 12.2 KB |
-| `os.info` (forks `uname`) | 1.80 ms | 109 | 47.8 KB |
-
-*Apple M3 Pro. Full benchmark suite: `go test -bench=. -benchmem ./...` — results archived in `benchmarks/`.*
+That is intentional. Katty is meant for environments where you control the machine, credentials, targets, and scope of work. For shared, production, or high-risk use, add isolation outside Katty: a restricted user, container, VM, disposable worktree, target-specific credentials, network controls, approvals, or snapshots.
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-- Go 1.21+
-- A [DeepSeek API key](https://platform.deepseek.com/)
+
+* Go 1.21+
+* A DeepSeek API key in `DEEPSEEK_API_KEY`
 
 ### Build
+
 ```bash
 git clone https://github.com/kat/katty.git
 cd katty
 go build -o katty .
 ```
 
-### Configure
-```bash
-export DEEPSEEK_API_KEY="sk-..."
-```
+On macOS, if you install the binary somewhere on your `PATH`, ad-hoc sign the copied binary so the OS does not kill it before startup:
 
-No config file needed — Katty-Go ships with sensible defaults. Optionally customize at `~/.katty/config.json`.
+```bash
+mkdir -p ~/.local/bin
+cp ./katty ~/.local/bin/katty
+codesign --force --sign - ~/.local/bin/katty
+hash -r
+```
 
 ### Run
-```bash
-./katty                     # start the assistant
-./katty --doctor            # run diagnostics (31 tools, 11 capability families)
-./katty --print-system      # print system context
-./katty --no-mcp            # skip MCP server startup
-```
-
----
-
-## Built-in Tools (31)
-
-All tools live under the `katty` server and are called via DeepSeek's tool-call loop.
-
-### Filesystem (`katty.fs.*`)
-`list` `read` `write` `append` `patch` `copy` `move` `remove` `mkdir` `stat` `search` `glob`
-— surgical file editing with `patch` for exact find-and-replace, `search` delegates to `rg` when available.
-
-### Process (`katty.proc.*`)
-`exec` `ps` `signal`
-— command execution with timeout, stdin, process groups, and clean Ctrl-C handling.
-
-### Session (`katty.session.*`)
-`start` `send` `read` `stop` `list`
-— long-running process sessions (debuggers, REPLs, tails) with buffered I/O.
-
-### Target (`katty.target.*`)
-`list` `info` `ping` `exec` `copy_to` `copy_from`
-— remote machine operations via system `ssh`/`scp`/`rsync`.
 
 ```bash
-# List configured targets
-/targets
+export DEEPSEEK_API_KEY="sk-..."
 
-# Check staging box health
-/tool katty.target.exec {"target":"staging","cmd":["systemctl","status","nginx"],"timeout_ms":5000}
-
-# Push a config to production
-/tool katty.target.copy_to {"target":"prod","src":"/tmp/nginx.conf","dst":"/etc/nginx/nginx.conf"}
-
-# Pull logs back for inspection
-/tool katty.target.copy_from {"target":"prod","src":"/var/log/nginx/error.log","dst":"/tmp/prod-error.log"}
+./katty
 ```
 
-### OS (`katty.os.*`)
-`info` `detect` `which` `capabilities`
-— environment introspection and binary discovery.
+Useful startup modes:
 
-### Network (`katty.net.*`)
-`check`
-— host/port reachability.
+```bash
+./katty --doctor        # run diagnostics and exit
+./katty --print-system  # print the assembled system prompt/context
+./katty --no-mcp        # skip configured MCP server startup
+./katty --config path   # use a specific config file
+```
+
+On first run, Katty uses `~/.katty/config.json` if it exists. If it does not, Katty writes a default config. Startup instruction files live beside it:
+
+```text
+~/.katty/config.json
+~/.katty/soul.md
+~/.katty/preferences.md
+~/.katty/sessions/
+```
 
 ---
 
-## Architecture
+## How It Feels To Use
 
-```
-katty (11 MB, single binary)
-├── deepseek        API client with auto tool-call loop
-├── builtin         31 native tools (no shell delegation)
-├── mcp             Model Context Protocol client (stdio + HTTP)
-├── config          ~/.katty/config.json with path expansion
-├── systemctx       OS/capability/environment probe
-├── startup         Loads soul.md + preferences.md into system prompt
-├── transcript      JSONL session logging
-└── repl            Interactive loop with Ctrl-C reliability
+You can ask for outcomes, not just commands:
+
+```text
+katty> find the failing auth test and fix the smallest thing
 ```
 
-**Zero external dependencies.** `go.sum` is empty by design.
+Katty can search the repo, read the relevant files, patch the code, run the test, and report what changed.
 
-DeepSeek is the built-in provider in v1. The text-block tool-call protocol keeps the tool loop independent of provider-native function calling — swap the model client without touching the tools.
+For remote work:
+
+```text
+katty> check nginx on staging and show me the most relevant logs
+```
+
+Katty can inspect configured targets, run a remote command, copy or read logs, and summarize what matters.
+
+For long-running work:
+
+```text
+katty> start the dev server and watch for errors while I test it
+```
+
+Katty can create a persistent session, read buffered output, send input later, and stop it when no longer needed.
+
+The useful loop is not "ask, answer, done." It is a working loop with machine feedback.
 
 ---
 
-## Tool Call Protocol
+## Built-In Tools
 
-The model emits tool calls in a text block — no provider-native function calling needed:
+Katty-Go ships with native tools under the `katty` server.
 
+### Filesystem: `katty.fs.*`
+
+```text
+list read write append patch copy move remove mkdir stat search glob
 ```
-<katty_tool_call>
-{"server":"katty","tool":"katty.fs.list","args":{"path":"/tmp","max_entries":100}}
-</katty_tool_call>
+
+Use these to inspect and change files without forcing every operation through shell syntax. `search` uses `rg` when available. `patch` performs exact text replacement, which is useful for precise edits where broad rewriting would be risky.
+
+### Process: `katty.proc.*`
+
+```text
+exec ps signal
 ```
 
-Katty-Go handles both fully-qualified (`katty.fs.list`) and short (`fs.list`) tool names from the model. MCP tools use the configured server prefix (e.g., `{"server":"file-utils","tool":"catalog_run_tool",...}`).
+Use these to run bounded commands, inspect processes, and send signals. Command execution supports stdin, timeouts, process groups, and captured stdout/stderr.
 
-### Tool-call Parsing
+### Session: `katty.session.*`
 
-Because tool calls arrive as raw model text — not a structured API — the parser is defensive by design:
+```text
+start send read stop list
+```
 
-| Scenario | Behavior |
-|----------|----------|
-| **Malformed JSON** | Silently skipped; no crash, no garbage tool call |
-| **Partial / truncated blocks** | Incomplete `<katty_tool_call>...</katty_tool_call>` pairs are ignored |
-| **Multiple calls in one response** | All parsed; executed sequentially, results concatenated |
-| **Nested or overlapping blocks** | Outer block wins; inner is treated as text |
-| **Dangling action phrases** | If the model says *"Let me check that"* but emits no tool call, Katty-Go detects the dangling intent and nudges for a concrete call |
-| **Code injection via tool args** | Args are JSON-decoded, not `eval`'d — string values stay strings |
-| **Dangerous-but-valid calls** | Katty-Go does not classify user intent or prevent dangerous tool calls — that responsibility stays with the operator |
+Use sessions for dev servers, REPLs, debuggers, log tails, watchers, and other long-running workflows. Output is buffered so the assistant can check progress without losing context.
 
-The parser is fuzz-tested against 1.6M+ random inputs and handles the full range of model output weirdness without panicking.
+### Target: `katty.target.*`
+
+```text
+list info ping exec copy_to copy_from
+```
+
+Use targets for configured remote machines. The target layer uses system `ssh`, `scp`, and `rsync`, so it fits naturally into existing operator workflows and credentials.
+
+### OS: `katty.os.*`
+
+```text
+info detect which capabilities
+```
+
+Use these to detect the local environment before assuming package managers, userland behavior, service managers, or available commands.
+
+### Network: `katty.net.*`
+
+```text
+check
+```
+
+Use this for host and port reachability checks.
+
+---
+
+## Configuration
+
+Katty's default config is intentionally small and lives at `~/.katty/config.json`.
+
+Important sections:
+
+* `model`: DeepSeek model, API base URL, API key environment variable, request timeout
+* `startup`: files loaded into the system context, usually `soul.md` and `preferences.md`
+* `environment`: local command checks used for capability probing
+* `capabilities`: named command families Katty reports to the model
+* `targets`: local and remote machines available to `katty.target.*`
+* `mcp_servers`: optional external MCP servers
+* `tooling`: tool-loop behavior such as max rounds
+* `output`: result-size, formatting, and terminal passthrough preferences
+* `transcripts`: JSONL session log location
+
+The startup files are ordinary Markdown. They are where you put durable behavior, preferences, conventions, and machine-operation guidance that should shape every session.
+
+For raw terminal use, prefix a command with `!`:
+
+```text
+katty> !ls -la ~/Desktop
+```
+
+That path bypasses DeepSeek entirely. Katty runs the command through your shell, prints stdout/stderr directly, does not append anything to conversation history, and returns to the prompt.
+
+For natural-language terminal display requests, the model can mark a tool call with `final: true`. When `output.terminal_passthrough` is enabled, Katty prints stdout/stderr directly, stores only a small tombstone result in history, and stops the turn instead of spending another model call interpreting the output.
+
+Display-only requests also apply to structured Katty tools where the result is naturally terminal-shaped. For example, `what files are on my desktop` can use `katty.fs.list` and print a plain names-only listing instead of dumping JSON or asking the model to summarize the list.
 
 ---
 
 ## MCP Extensibility
 
-Katty-Go is an MCP client. Add external tool servers in `~/.katty/config.json`:
+Katty-Go can start and call configured MCP servers.
+
+Example:
 
 ```json
 {
   "mcp_servers": {
     "file-utils": {
       "enabled": true,
+      "required": false,
+      "transport": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-      "cwd": "~/mcp"
+      "cwd": "~/mcp",
+      "startup_timeout_seconds": 10,
+      "call_timeout_seconds": 60
     }
   }
 }
 ```
 
-- MCP servers start automatically when enabled
-- Tool calls only route to live, initialized clients
-- Optional server failures are logged; required failures stop startup
-- Stdio and HTTP transports supported
+Enabled servers are started during initialization. Optional failures are reported as warnings; required failures stop startup. Only initialized servers contribute tools to the model context.
 
 ---
 
-## Startup Files
+## Tool Call Protocol
 
-Katty-Go loads personality and preferences from `~/.katty/`:
+Katty uses text-block tool calls so the runtime is not tied to provider-native function calling.
 
-| File | Purpose |
-|------|---------|
-| `soul.md` | Core personality and behavior instructions |
-| `preferences.md` | User preferences, conventions, project context |
+The model emits:
 
-These are injected into the system prompt and influence all model interactions.
+```xml
+<katty_tool_call>
+{"server":"katty","tool":"katty.proc.exec","args":{"cmd":"/bin/ls","args":["-la","/tmp"]},"final":true}
+</katty_tool_call>
+```
+
+Katty parses the block, executes the tool, and either continues the loop or ends the turn depending on `final`.
+
+Use `final: true` when stdout/stderr is itself the answer. Leave it unset or false when the output is input to further reasoning, debugging, fixing, or summarizing.
+
+Parser behavior is defensive:
+
+| Scenario | Behavior |
+| --- | --- |
+| Malformed JSON | skipped without crashing |
+| Partial tool blocks | ignored |
+| Multiple calls | parsed and executed sequentially |
+| Nested blocks | outer block wins |
+| Dangling action phrases | nudged toward a concrete tool call |
+| Tool args | JSON-decoded, not eval'd |
+
+The tool catalog in the system prompt is authoritative. If a tool is not listed there, the model is instructed not to invent it.
 
 ---
 
-## Terminal Reliability
+## Architecture
 
-- **Ctrl-C once** → cancels current operation, returns to prompt
-- **Ctrl-C twice within 2s** → exits cleanly
-- Child processes never inherit terminal stdin
-- Process groups ensure clean timeout/termination (`Setpgid: true`)
-- MCP servers survive individual Ctrl-C events
+```text
+katty
+├── deepseek        DeepSeek chat client
+├── repl            interactive controller and tool loop
+├── builtin         native filesystem/process/session/target/OS/network tools
+├── mcp             MCP manager and stdio client
+├── config          default config, loading, and path expansion
+├── startup         startup file loading and first-run directory setup
+├── systemctx       system prompt assembly
+├── envprobe        OS, user, shell, and command discovery
+└── transcript      JSONL session logging
+```
+
+The project is deliberately compact and dependency-light. Most capabilities use Go's standard library plus the host system tools already present on the machine.
 
 ---
 
 ## REPL Commands
 
-```
+```text
 /help, /env, /capabilities, /files, /targets
 /mcp, /tools, /schema <tool>, /tool <tool> <json>
 /interrupt, /ps, /sessions, /kill
@@ -256,31 +310,27 @@ These are injected into the system prompt and influence all model interactions.
 
 ## Quality
 
-| Check | Status |
-|-------|--------|
-| `gofmt` |clean |
-| `go vet` |clean |
-| `staticcheck` |clean |
-| `golangci-lint` |0 issues |
-| `go test -race -cover` |39 tests, 0 races |
-| Fuzz (5 fuzzers, 4.7M+ execs) |no panics |
-| Benchmarks (13 ops) | ✅ |
+Run the full local check suite:
 
-Run it yourself: `./scripts/ci.sh`
+```bash
+./scripts/ci.sh
+```
 
-Full report: [`docs/testing.md`](docs/testing.md)
+The suite covers formatting, vetting, static analysis, linting, race-enabled tests, fuzz smoke tests, and benchmark smoke tests.
+
+Benchmark snapshots live in `benchmarks/`. Additional testing notes live in `docs/testing.md`.
 
 ---
 
-## Current Limitations (v1)
+## Current Limitations
 
-- Text-block tool calls, not provider-native function calling
-- No safety policy — assumes trusted local/remote targets
-- Serializes MCP calls per server
-- No native Go SSH — uses system `ssh`/`scp`/`rsync`
-- No raw syscall wrappers (`mmap`/`ptrace`/`ioctl`) — use generated probes
-- No streaming responses
-- No long-term memory
+* DeepSeek is the built-in provider in v1.
+* Tool calls are text-block based, not provider-native function calls.
+* There is no built-in safety policy or sandbox.
+* Remote targets use system `ssh`, `scp`, and `rsync`.
+* MCP support is intentionally minimal.
+* Responses are not streamed.
+* There is no long-term memory beyond startup files and transcripts.
 
 ---
 

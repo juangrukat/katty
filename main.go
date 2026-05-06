@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -26,6 +27,12 @@ import (
 	"github.com/kat/katty/internal/systemctx"
 	"github.com/kat/katty/internal/transcript"
 )
+
+//go:embed examples/soul.md
+var defaultSoul string
+
+//go:embed examples/preferences.md
+var defaultPreferences string
 
 var (
 	configPath  = flag.String("config", "", "Path to config file")
@@ -112,7 +119,7 @@ func main() {
 	}
 
 	// Ensure .katty directory and default files
-	if err := startup.EnsureDir(); err != nil {
+	if err := startup.EnsureDir(defaultSoul, defaultPreferences); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 	}
 

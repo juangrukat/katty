@@ -76,6 +76,7 @@ type OutputConfig struct {
 	PreferStructuredContent bool `json:"prefer_structured_content"`
 	IncludeRawMCPEnvelope   bool `json:"include_raw_mcp_envelope"`
 	CompactShellResults     bool `json:"compact_shell_results"`
+	TerminalPassthrough     bool `json:"terminal_passthrough"`
 }
 
 type MCPConfig struct {
@@ -98,13 +99,13 @@ func DefaultConfig() Config {
 	return Config{
 		Model: ModelConfig{
 			Provider:              "deepseek",
-			Model:                 "deepseek-chat",
+			Model:                 "deepseek-v4-pro",
 			APIKeyEnv:             "DEEPSEEK_API_KEY",
 			BaseURL:               "https://api.deepseek.com",
 			RequestTimeoutSeconds: 120,
 		},
 		Startup: StartupConfig{
-			MaxFileChars: 20000,
+			MaxFileChars: 60000,
 			Files: []string{
 				"~/.katty/soul.md",
 				"~/.katty/preferences.md",
@@ -148,13 +149,14 @@ func DefaultConfig() Config {
 		MCPServers: map[string]MCPServerConfig{},
 		Tooling: ToolingConfig{
 			Mode:          "auto",
-			MaxToolRounds: 5,
+			MaxToolRounds: 25,
 		},
 		Output: OutputConfig{
-			MaxToolOutputChars:      20000,
+			MaxToolOutputChars:      50000,
 			PreferStructuredContent: true,
 			IncludeRawMCPEnvelope:   false,
 			CompactShellResults:     true,
+			TerminalPassthrough:     true,
 		},
 		MCP: MCPConfig{
 			CacheTools:         true,

@@ -51,6 +51,20 @@ func TestRegistry_ListOrder(t *testing.T) {
 	}
 }
 
+func TestRegistry_ListIncludesEveryRegisteredTool(t *testing.T) {
+	r := NewRegistry()
+	listed := make(map[string]bool)
+	for _, tool := range r.List() {
+		listed[tool.Name] = true
+	}
+
+	for name := range r.tools {
+		if !listed[name] {
+			t.Errorf("registered tool %s is missing from Registry.List", name)
+		}
+	}
+}
+
 // ── Filesystem tool tests ──
 
 func TestFsList(t *testing.T) {

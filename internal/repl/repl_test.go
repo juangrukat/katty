@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -155,5 +156,109 @@ func TestParseToolCalls_MCPTool(t *testing.T) {
 	}
 	if calls[0].Server != "file-utils" {
 		t.Errorf("expected server=file-utils, got %s", calls[0].Server)
+	}
+}
+
+func TestParseToolCalls_Final(t *testing.T) {
+	text := `<katty_tool_call>
+{"server":"katty","tool":"katty.proc.exec","final":true,"args":{"cmd":"/bin/ls","args":["-la"]}}
+</katty_tool_call>`
+
+	calls := parseToolCalls(text)
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 call, got %d", len(calls))
+	}
+	if !calls[0].Final {
+		t.Fatal("expected final=true")
+	}
+}
+
+func TestIsDisplayOnlyRequest(t *testing.T) {
+	tests := []string{
+		"list the files on my desktop",
+		"show me /tmp",
+		"display the current config",
+		"print the first ten lines",
+		"run go test ./...",
+		"pwd",
+		"what files are on my desktop",
+	}
+
+	for _, text := range tests {
+		if !isDisplayOnlyRequest(text) {
+			t.Errorf("should be display-only request: %s", text)
+		}
+	}
+}
+
+func TestIsDisplayOnlyRequest_AgenticIntent(t *testing.T) {
+	tests := []string{
+		"list the files and summarize them",
+		"run go test ./... and fix failures",
+		"show the logs and diagnose the problem",
+		"find the bug and repair it",
+	}
+
+	for _, text := range tests {
+		if isDisplayOnlyRequest(text) {
+			t.Errorf("should not be display-only request: %s", text)
+		}
+	}
+}
+
+func TestParseTerminalOutput_JSON(t *testing.T) {
+	body := `{"stdout":"hello\n","stderr":"","exit_code":0}`
+
+	output, ok := parseTerminalOutput(body)
+	if !ok {
+		t.Fatal("expected JSON terminal output")
+	}
+	if output.Stdout != "hello\n" {
+		t.Fatalf("stdout mismatch: %q", output.Stdout)
+	}
+	if !output.HasExit || output.ExitCode != 0 {
+		t.Fatalf("exit code mismatch: %#v", output)
+	}
+}
+
+func TestParseTerminalOutput_PlainToolResult(t *testing.T) {
+	body := `exit_code: 0
+
+stdout:
+total 8
+drwxr-xr-x  2 kat staff 64 May  6 .
+-rw-r--r--  1 kat staff 12 May  6 note.txt
+
+`
+
+	output, ok := parseTerminalOutput(body)
+	if !ok {
+		t.Fatal("expected plain terminal output")
+	}
+	if !output.HasExit || output.ExitCode != 0 {
+		t.Fatalf("exit code mismatch: %#v", output)
+	}
+	if want := "total 8\ndrwxr-xr-x  2 kat staff 64 May  6 .\n-rw-r--r--  1 kat staff 12 May  6 note.txt\n"; output.Stdout != want {
+		t.Fatalf("stdout mismatch:\nwant %q\ngot  %q", want, output.Stdout)
+	}
+}
+
+func TestRenderFileListDisplay(t *testing.T) {
+	result := `<tool_result server="katty" tool="katty.fs.list" elapsed_ms="1">
+{"entries":[{"name":"alpha","type":"dir"},{"name":"note.txt","type":"file"},{"name":"link","type":"symlink","target":"/tmp/target"}],"path":"/tmp","truncated":true}
+</tool_result>`
+
+	body := toolResultBody(result)
+	var content map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &content); err != nil {
+		t.Fatalf("json parse: %v", err)
+	}
+	got, ok := renderFileListDisplay(content)
+	if !ok {
+		t.Fatal("expected file list display")
+	}
+	want := "alpha/\nnote.txt\nlink -> /tmp/target\n[truncated]\n"
+	if got != want {
+		t.Fatalf("display mismatch:\nwant %q\ngot  %q", want, got)
 	}
 }

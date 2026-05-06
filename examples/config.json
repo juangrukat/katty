@@ -7,7 +7,7 @@
     "request_timeout_seconds": 120
   },
   "startup": {
-    "max_file_chars": 25000,
+    "max_file_chars": 60000,
     "files": [
       "~/.katty/soul.md",
       "~/.katty/preferences.md"
@@ -17,45 +17,151 @@
     "enabled": true,
     "include_path": true,
     "tool_checks": [
+      "sh",
+      "bash",
+      "zsh",
       "git",
+      "cc",
+      "gcc",
+      "clang",
+      "make",
+      "cmake",
+      "ninja",
+      "go",
       "python3",
-      "node",
-      "brew",
-      "rg",
-      "jq"
+      "perl",
+      "awk",
+      "sed",
+      "grep",
+      "find",
+      "xargs",
+      "tar",
+      "gzip",
+      "curl",
+      "wget",
+      "ssh",
+      "scp",
+      "rsync",
+      "nc",
+      "ping",
+      "man",
+      "gdb",
+      "lldb",
+      "strace",
+      "truss",
+      "ktrace",
+      "dtrace",
+      "perf",
+      "bpftrace",
+      "readelf",
+      "objdump",
+      "nm",
+      "addr2line",
+      "hexdump",
+      "xxd"
     ]
   },
-  "mcp_servers": {
-    "file-utils": {
-      "enabled": true,
-      "required": false,
-      "transport": "stdio",
-      "command": "python3",
-      "args": [
-        "~/mcp-servers/file-utils/main.py",
-        "--transport=stdio"
+  "capabilities": {
+    "scan_on_startup": true,
+    "families": {
+      "archive": [
+        "tar",
+        "gzip",
+        "xz",
+        "zip",
+        "unzip"
       ],
-      "cwd": "~/mcp-servers/file-utils",
-      "startup_timeout_seconds": 15
+      "build": [
+        "make",
+        "cmake",
+        "ninja",
+        "meson"
+      ],
+      "compilers": [
+        "cc",
+        "gcc",
+        "clang",
+        "go",
+        "rustc"
+      ],
+      "debuggers": [
+        "gdb",
+        "lldb"
+      ],
+      "docs": [
+        "man",
+        "apropos",
+        "info"
+      ],
+      "elf_tools": [
+        "readelf",
+        "objdump",
+        "nm",
+        "addr2line"
+      ],
+      "network": [
+        "ping",
+        "nc",
+        "curl",
+        "wget",
+        "ssh",
+        "scp",
+        "rsync"
+      ],
+      "shells": [
+        "sh",
+        "bash",
+        "zsh",
+        "ksh",
+        "fish"
+      ],
+      "system": [
+        "uname",
+        "sysctl",
+        "dmesg",
+        "mount",
+        "ps",
+        "top"
+      ],
+      "text": [
+        "awk",
+        "sed",
+        "grep",
+        "find",
+        "xargs"
+      ],
+      "tracers": [
+        "strace",
+        "truss",
+        "ktrace",
+        "dtrace",
+        "perf",
+        "bpftrace"
+      ]
     }
   },
+  "targets": {
+    "local": {
+      "type": "local",
+      "default": true
+    }
+  },
+  "mcp_servers": {},
   "tooling": {
     "mode": "auto",
-    "max_tool_rounds": 5000
+    "max_tool_rounds": 25
   },
   "output": {
-    "max_tool_output_chars": 25000,
+    "max_tool_output_chars": 50000,
     "prefer_structured_content": true,
     "include_raw_mcp_envelope": false,
-    "compact_shell_results": true
+    "compact_shell_results": true,
+    "terminal_passthrough": true
   },
   "mcp": {
     "cache_tools": true,
     "cache_ttl_seconds": 3600,
-    "call_timeout_seconds": 60
-  },
-  "policy": {
-    "tool_mode": "auto"
+    "startup_concurrency": true
   },
   "transcripts": {
     "dir": "~/.katty/sessions",

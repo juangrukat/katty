@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/kat/katty/internal/config"
 )
@@ -40,7 +39,7 @@ func Load(cfg config.StartupConfig) ([]File, []string) {
 	return files, warnings
 }
 
-func EnsureDir() error {
+func EnsureDir(defaultSoul, defaultPreferences string) error {
 	home, _ := os.UserHomeDir()
 	kattyDir := filepath.Join(home, ".katty")
 
@@ -50,32 +49,20 @@ func EnsureDir() error {
 
 	soulPath := filepath.Join(kattyDir, "soul.md")
 	if _, err := os.Stat(soulPath); os.IsNotExist(err) {
-		defaultSoul := strings.TrimSpace(`
-You are Katty, Kat's local DeepSeek terminal assistant.
-You are direct, practical, and grounded.
-You are a toolmaking tool for Unix-like systems work.
-You help build, inspect, test, debug, and improve tools.
-Use Katty tool calls when local or target information is needed.
-Do not claim to have run tools unless a tool result is present.
-Prefer small composable commands and inspectable steps.
-`)
-		os.WriteFile(soulPath, []byte(defaultSoul+"\n"), 0644)
+		os.WriteFile(soulPath, []byte(ensureTrailingNewline(defaultSoul)), 0644)
 	}
 
 	prefsPath := filepath.Join(kattyDir, "preferences.md")
 	if _, err := os.Stat(prefsPath); os.IsNotExist(err) {
-		defaultPrefs := strings.TrimSpace(`
-Kat prefers:
-- fast local tooling
-- minimal dependencies
-- native-feeling command-line tools
-- explicit control
-- sharp Unix-like capabilities
-- distribution-neutral systems work
-- tools that help build other tools
-`)
-		os.WriteFile(prefsPath, []byte(defaultPrefs+"\n"), 0644)
+		os.WriteFile(prefsPath, []byte(ensureTrailingNewline(defaultPreferences)), 0644)
 	}
 
 	return nil
+}
+
+func ensureTrailingNewline(s string) string {
+	if s == "" || s[len(s)-1] == '\n' {
+		return s
+	}
+	return s + "\n"
 }

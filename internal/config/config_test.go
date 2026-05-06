@@ -18,8 +18,17 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Tooling.Mode != "auto" {
 		t.Errorf("expected auto mode, got %s", cfg.Tooling.Mode)
 	}
-	if cfg.Tooling.MaxToolRounds != 5 {
-		t.Errorf("expected 5 max rounds, got %d", cfg.Tooling.MaxToolRounds)
+	if cfg.Tooling.MaxToolRounds != 25 {
+		t.Errorf("expected 25 max rounds, got %d", cfg.Tooling.MaxToolRounds)
+	}
+	if cfg.Startup.MaxFileChars != 60000 {
+		t.Errorf("expected 60000 startup chars, got %d", cfg.Startup.MaxFileChars)
+	}
+	if cfg.Output.MaxToolOutputChars != 50000 {
+		t.Errorf("expected 50000 output chars, got %d", cfg.Output.MaxToolOutputChars)
+	}
+	if !cfg.Output.TerminalPassthrough {
+		t.Error("expected terminal passthrough enabled")
 	}
 
 	// Default target

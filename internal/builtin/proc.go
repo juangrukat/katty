@@ -81,11 +81,10 @@ func procExec(ctx context.Context, args map[string]interface{}) ToolResult {
 		timeoutSec = 30
 	}
 
-	// Create context with timeout
 	procCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(procCtx, cmdStr, rawArgs...)
+	cmd := exec.Command(cmdStr, rawArgs...)
 	if cwd != "" {
 		cmd.Dir = cwd
 	}
@@ -105,30 +104,52 @@ func procExec(ctx context.Context, args map[string]interface{}) ToolResult {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	start := time.Now()
-	err := cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return errResult("exec_error", err.Error())
+	}
+	procMgr.Add(cmd)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+		procMgr.Remove(cmd.Process.Pid)
+	}()
+
+	var err error
+	select {
+	case err = <-done:
+	case <-procCtx.Done():
+		terminateProcessGroup(cmd, done)
+		elapsed := time.Since(start)
+		kind := "cancelled"
+		message := "command cancelled"
+		timedOut := false
+		if procCtx.Err() == context.DeadlineExceeded {
+			kind = "timeout"
+			message = fmt.Sprintf("command timed out after %ds", timeoutSec)
+			timedOut = true
+		}
+		return ToolResult{
+			IsError: true,
+			Error: &ToolError{
+				Kind:    kind,
+				Message: message,
+			},
+			Content: map[string]interface{}{
+				"cmd":        cmdStr,
+				"stdout":     stdout.String(),
+				"stderr":     stderr.String(),
+				"exit_code":  -1,
+				"elapsed_ms": elapsed.Milliseconds(),
+				"timed_out":  timedOut,
+				"cancelled":  !timedOut,
+			},
+		}
+	}
 	elapsed := time.Since(start)
 
 	exitCode := 0
 	if err != nil {
-		// Always check context first — CommandContext may return ExitError for killed processes
-		if procCtx.Err() != nil {
-			killProcessGroup(cmd)
-			return ToolResult{
-				IsError: true,
-				Error: &ToolError{
-					Kind:    "timeout",
-					Message: fmt.Sprintf("command timed out after %ds", timeoutSec),
-				},
-				Content: map[string]interface{}{
-					"cmd":        cmdStr,
-					"stdout":     stdout.String(),
-					"stderr":     stderr.String(),
-					"exit_code":  -1,
-					"elapsed_ms": elapsed.Milliseconds(),
-					"timed_out":  true,
-				},
-			}
-		}
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		} else {
@@ -146,13 +167,30 @@ func procExec(ctx context.Context, args map[string]interface{}) ToolResult {
 	})
 }
 
-func killProcessGroup(cmd *exec.Cmd) {
+func terminateProcessGroup(cmd *exec.Cmd, done <-chan error) {
 	if cmd.Process != nil {
-		// Kill the whole process group
-		pgid, err := syscall.Getpgid(cmd.Process.Pid)
-		if err == nil {
-			syscall.Kill(-pgid, syscall.SIGKILL)
+		signalProcessGroup(cmd, syscall.SIGTERM)
+		select {
+		case <-done:
+			return
+		case <-time.After(2 * time.Second):
 		}
+		signalProcessGroup(cmd, syscall.SIGKILL)
+		<-done
+	}
+}
+
+func killProcessGroup(cmd *exec.Cmd) {
+	signalProcessGroup(cmd, syscall.SIGKILL)
+}
+
+func signalProcessGroup(cmd *exec.Cmd, sig syscall.Signal) {
+	if cmd.Process == nil {
+		return
+	}
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	if err == nil {
+		syscall.Kill(-pgid, sig)
 	}
 }
 
@@ -273,10 +311,7 @@ func (pm *ProcManager) KillAll() {
 	defer pm.mu.Unlock()
 	for pid, cmd := range pm.procs {
 		if cmd.Process != nil {
-			pgid, err := syscall.Getpgid(pid)
-			if err == nil {
-				syscall.Kill(-pgid, syscall.SIGKILL)
-			}
+			signalProcessGroup(cmd, syscall.SIGKILL)
 		}
 		delete(pm.procs, pid)
 	}
